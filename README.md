@@ -6,7 +6,7 @@ Interfaz en React para configurar pruebas de carga, seguir sus métricas en tiem
 
 | | |
 |---|---|
-| Aplicación (Vercel) | <https://testeador-carga-frontend-ruddy.vercel.app> |
+| Aplicación (Vercel) | <https://testeador-carga-frontend.vercel.app> |
 | Backend (Render) | <https://testeador-carga-api.onrender.com> · [repositorio](https://github.com/JulianMoreno627/TESTEADOR-CARGA-BACKEND) |
 
 El código está en inglés y los textos que ve el usuario, en español. En el plan gratuito, Render apaga el backend tras 15 minutos sin uso: la primera carga puede tardar cerca de un minuto.
