@@ -13,8 +13,10 @@ const PATTERNS = [
   { value: 'spike', label: 'Picos', description: 'Carga base con ráfagas de todos los usuarios.' },
 ];
 
-// Rutas de `npm run demo:target` en el backend.
-const DEMO_ROUTES = ['fast', 'slow', 'flaky', 'heavy'];
+// API de ejemplo del backend (`npm run demo:target`): local en desarrollo y, en
+// producción, el servicio de Render ya verificado.
+const DEMO_BASE_URL = import.meta.env.VITE_DEMO_URL ?? (import.meta.env.DEV ? 'http://localhost:4000' : 'https://testeador-carga-demo.onrender.com');
+const DEMO_ROUTES = ['fast', 'slow', 'flaky', 'heavy', 'api/products'];
 const TARGET_ERROR_CODES = new Set(['TARGET_NOT_VERIFIED', 'TARGET_VERIFICATION_FAILED']);
 
 // Solo en memoria: sobrevive al cambiar de página para repetir una prueba, pero nunca
@@ -132,20 +134,18 @@ export default function NewTestPage() {
                 )}
               </FormField>
               <FormField label="URL" error={fieldErrors.url}>
-                {(props) => <input type="url" placeholder="http://localhost:4000/slow" autoComplete="off" {...props} {...bind('url')} />}
+                {(props) => <input type="url" placeholder={`${DEMO_BASE_URL}/slow`} autoComplete="off" {...props} {...bind('url')} />}
               </FormField>
             </div>
 
-            {import.meta.env.DEV && (
-              <div className="demo-routes">
-                <span className="muted">API de ejemplo:</span>
-                {DEMO_ROUTES.map((route) => (
-                  <button key={route} type="button" className="chip" onClick={() => setField('url', `http://localhost:4000/${route}`)}>
-                    /{route}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="demo-routes">
+              <span className="muted">Probar con la API de ejemplo:</span>
+              {DEMO_ROUTES.map((route) => (
+                <button key={route} type="button" className="chip" onClick={() => setField('url', `${DEMO_BASE_URL}/${route}`)}>
+                  /{route}
+                </button>
+              ))}
+            </div>
 
             <FormField label="Nombre" hint="Opcional. Sirve para reconocerla en el historial." error={fieldErrors.name}>
               {(props) => <input type="text" maxLength={120} placeholder="Antes de la optimización" {...props} {...bind('name')} />}
