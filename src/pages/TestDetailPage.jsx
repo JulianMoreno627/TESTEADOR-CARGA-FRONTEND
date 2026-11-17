@@ -2,6 +2,7 @@ import { ArrowLeft, FileDown, FileJson, FileText, GitCompareArrows, Square } fro
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { loadTests, views } from '../api/client.js';
+import AiAnalysisPanel from '../components/AiAnalysisPanel.jsx';
 import Breakdown from '../components/Breakdown.jsx';
 import { ErrorNotice, Loading, StatusBadge } from '../components/Feedback.jsx';
 import LineChart from '../components/LineChart.jsx';
@@ -250,6 +251,7 @@ function TestDetail({ id }) {
       )}
 
       {summary && <SummaryDetails summary={summary} />}
+      {!running && summary && <AiAnalysisPanel testId={id} />}
     </>
   );
 }
