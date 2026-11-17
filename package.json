@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --port 5173 --strictPort",
-    "test": "node --test \"src/**/*.test.js\""
+    "test": "node --test \"src/**/*.test.js\"",
+    "contract:sync": "node scripts/sync-contract.mjs"
   },
   "engines": {
     "node": ">=20"
@@ -22,7 +23,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "4.3.4",
-    "vite": "5.4.21"
+    "vite": "5.4.21",
+    "yaml": "2.9.1"
   },
   "author": "Julian Moreno"
 }

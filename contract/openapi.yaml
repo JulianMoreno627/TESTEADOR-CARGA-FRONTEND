@@ -1,0 +1,702 @@
+openapi: 3.1.0
+info:
+  title: Testeador de Carga Visual
+  version: 1.1.0
+  description: |
+    Contrato de la API REST. Es la fuente de verdad (contract-first): primero se
+    cambia este archivo y después el backend y el frontend. Las pruebas de contrato
+    de ambos repositorios validan sus respuestas contra estos esquemas.
+
+    Los eventos en tiempo real (Socket.io) están documentados en docs/API.md.
+servers:
+  - url: http://localhost:3000
+    description: Desarrollo
+
+tags:
+  - name: load-tests
+  - name: analysis
+  - name: targets
+  - name: system
+
+paths:
+  /health:
+    get:
+      tags: [system]
+      operationId: getHealth
+      summary: Estado del servidor y de la base de datos
+      responses:
+        '200':
+          description: Todo funciona
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+        '503':
+          description: La base de datos no responde
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+
+  /health/live:
+    get:
+      tags: [system]
+      operationId: getLiveness
+      summary: El proceso responde (no consulta la base de datos)
+      description: |
+        Para el health check de Render. No toca la base de datos, así Neon puede
+        suspenderse cuando no hay uso y no gasta horas de cómputo del plan gratuito.
+      responses:
+        '200':
+          description: El proceso está vivo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { const: ok }
+
+  /api/v1/metrics:
+    get:
+      tags: [system]
+      operationId: getServerMetrics
+      summary: Rendimiento del propio backend
+      responses:
+        '200':
+          description: Métricas actuales
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - properties:
+                      data: { $ref: '#/components/schemas/ServerMetrics' }
+
+  /api/v1/load-tests:
+    post:
+      tags: [load-tests]
+      operationId: startLoadTest
+      summary: Inicia una prueba de carga
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StartLoadTestRequest' }
+      responses:
+        '201':
+          description: Prueba iniciada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - properties:
+                      data: { $ref: '#/components/schemas/LoadTest' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    get:
+      tags: [load-tests]
+      operationId: listLoadTests
+      summary: Historial paginado (sin la serie de tiempo)
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+      responses:
+        '200':
+          description: Página del historial
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - required: [meta]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/LoadTestListItem' }
+                      meta: { $ref: '#/components/schemas/PageMeta' }
+
+  /api/v1/load-tests/compare:
+    get:
+      tags: [load-tests]
+      operationId: compareLoadTests
+      summary: Compara dos corridas terminadas
+      parameters:
+        - { name: baseline, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: candidate, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Comparación
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - properties:
+                      data: { $ref: '#/components/schemas/Comparison' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+
+  /api/v1/load-tests/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [load-tests]
+      operationId: getLoadTest
+      summary: Detalle de una prueba, con su serie de tiempo
+      responses:
+        '200':
+          description: La prueba
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - properties:
+                      data: { $ref: '#/components/schemas/LoadTest' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [load-tests]
+      operationId: deleteLoadTest
+      summary: Elimina una prueba terminada
+      responses:
+        '204': { description: Eliminada }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+
+  /api/v1/load-tests/{id}/stop:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [load-tests]
+      operationId: stopLoadTest
+      summary: Detiene una prueba en curso
+      responses:
+        '200':
+          description: La prueba detenida
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - properties:
+                      data: { $ref: '#/components/schemas/LoadTest' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+
+  /api/v1/load-tests/{id}/report:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [load-tests]
+      operationId: downloadReport
+      summary: Descarga el reporte en JSON o PDF
+      parameters:
+        - { name: format, in: query, schema: { type: string, enum: [json, pdf], default: json } }
+      responses:
+        '200':
+          description: El reporte como archivo adjunto
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoadTest' }
+            application/pdf:
+              schema: { type: string, format: binary }
+        '409': { $ref: '#/components/responses/Error' }
+
+  /api/v1/load-tests/{id}/analysis:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [analysis]
+      operationId: getAnalysis
+      summary: Análisis con IA ya generado
+      responses:
+        '200':
+          description: El análisis guardado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - properties:
+                      data: { $ref: '#/components/schemas/AiAnalysis' }
+        '404':
+          description: La prueba no existe o aún no tiene análisis (ANALYSIS_NOT_FOUND)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+    post:
+      tags: [analysis]
+      operationId: createAnalysis
+      summary: Genera el análisis con IA (Gemini, con Groq de respaldo)
+      description: |
+        Es idempotente: una corrida terminada no cambia, así que si ya tiene análisis
+        se devuelve el guardado sin volver a llamar a la IA.
+      responses:
+        '200':
+          description: El análisis, nuevo o guardado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - properties:
+                      data: { $ref: '#/components/schemas/AiAnalysis' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: La prueba sigue en curso o no tiene resultados (REPORT_NOT_READY, TEST_NOT_COMPARABLE)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503':
+          description: Ningún proveedor de IA está disponible (AI_UNAVAILABLE)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/v1/targets:
+    get:
+      tags: [targets]
+      operationId: listTargets
+      summary: Dominios registrados
+      responses:
+        '200':
+          description: Lista de dominios
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Target' }
+    post:
+      tags: [targets]
+      operationId: registerTarget
+      summary: Registra un dominio público y devuelve cómo verificarlo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [hostname]
+              properties:
+                hostname: { type: string, example: api.midominio.com }
+      responses:
+        '201':
+          description: Dominio registrado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - properties:
+                      data: { $ref: '#/components/schemas/Target' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+
+  /api/v1/targets/{id}/verify:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [targets]
+      operationId: verifyTarget
+      summary: Comprueba el token por HTTP o DNS
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                method: { type: string, enum: [http, dns], default: http }
+      responses:
+        '200':
+          description: Dominio verificado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - properties:
+                      data: { $ref: '#/components/schemas/Target' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+
+  /api/v1/targets/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    delete:
+      tags: [targets]
+      operationId: deleteTarget
+      summary: Elimina un dominio registrado
+      responses:
+        '204': { description: Eliminado }
+        '404': { $ref: '#/components/responses/Error' }
+
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Error:
+      description: Error con el formato común
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  schemas:
+    Success:
+      type: object
+      required: [success, data]
+      properties:
+        success: { const: true }
+
+    ErrorResponse:
+      type: object
+      required: [success, error]
+      properties:
+        success: { const: false }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, example: TARGET_NOT_VERIFIED }
+            message: { type: string }
+            details: {}
+
+    PageMeta:
+      type: object
+      required: [total, limit, offset]
+      properties:
+        total: { type: integer, minimum: 0 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    NullableNumber:
+      type: [number, 'null']
+
+    NullableDateTime:
+      type: [string, 'null']
+      format: date-time
+
+    RunStatus:
+      type: string
+      enum: [running, completed, stopped, failed]
+
+    LoadPattern:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [type]
+          properties:
+            type: { const: constant }
+        - type: object
+          additionalProperties: false
+          required: [type]
+          properties:
+            type: { const: ramp }
+            startVus: { type: integer, minimum: 1 }
+            rampSeconds: { type: integer, minimum: 1 }
+        - type: object
+          additionalProperties: false
+          required: [type]
+          properties:
+            type: { const: spike }
+            baseVus: { type: integer, minimum: 1 }
+            spikes: { type: integer, minimum: 1, maximum: 20 }
+            spikeSeconds: { type: integer, minimum: 1 }
+
+    HttpMethod:
+      type: string
+      enum: [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS]
+
+    StartLoadTestRequest:
+      type: object
+      additionalProperties: false
+      required: [url, vus, durationSeconds]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        url: { type: string, format: uri, example: 'http://localhost:4000/slow' }
+        method: { $ref: '#/components/schemas/HttpMethod' }
+        headers:
+          type: object
+          additionalProperties: { type: string }
+        body:
+          description: Texto, objeto o lista (se envía como JSON). Hasta 64 KB.
+        vus: { type: integer, minimum: 1, description: Máximo configurable, 500 por defecto }
+        durationSeconds: { type: integer, minimum: 1, description: Máximo configurable, 300 por defecto }
+        pattern: { $ref: '#/components/schemas/LoadPattern' }
+        thinkTimeMs: { type: integer, minimum: 0, maximum: 60000, default: 0 }
+        timeoutMs: { type: integer, minimum: 100, maximum: 60000, default: 10000 }
+
+    PublicConfig:
+      description: Configuración guardada, con las credenciales ocultas y sin el cuerpo
+      type: object
+      required: [url, method, headers, vus, durationSeconds, pattern, thinkTimeMs, timeoutMs, bodyBytes]
+      properties:
+        name: { type: string }
+        url: { type: string }
+        method: { $ref: '#/components/schemas/HttpMethod' }
+        headers:
+          type: object
+          additionalProperties: { type: string }
+        vus: { type: integer }
+        durationSeconds: { type: integer }
+        pattern: { $ref: '#/components/schemas/LoadPattern' }
+        thinkTimeMs: { type: integer }
+        timeoutMs: { type: integer }
+        bodyBytes: { type: integer, minimum: 0 }
+
+    WindowLatency:
+      type: object
+      required: [p50, p95, p99, mean, max]
+      properties:
+        p50: { $ref: '#/components/schemas/NullableNumber' }
+        p95: { $ref: '#/components/schemas/NullableNumber' }
+        p99: { $ref: '#/components/schemas/NullableNumber' }
+        mean: { $ref: '#/components/schemas/NullableNumber' }
+        max: { $ref: '#/components/schemas/NullableNumber' }
+
+    TimelinePoint:
+      type: object
+      required: [t, activeVus, targetVus, requests, errors, rps, errorRate, bytesPerSecond, latency]
+      properties:
+        t: { type: number, description: Segundos desde el inicio }
+        activeVus: { type: integer, minimum: 0 }
+        targetVus: { type: integer, minimum: 0 }
+        requests: { type: integer, minimum: 0 }
+        errors: { type: integer, minimum: 0 }
+        rps: { type: number, minimum: 0 }
+        errorRate: { type: number, minimum: 0, maximum: 1 }
+        bytesPerSecond: { type: number, minimum: 0 }
+        latency: { $ref: '#/components/schemas/WindowLatency' }
+
+    LatencySummary:
+      type: object
+      required: [min, mean, p50, p90, p95, p99, max]
+      properties:
+        min: { $ref: '#/components/schemas/NullableNumber' }
+        mean: { $ref: '#/components/schemas/NullableNumber' }
+        p50: { $ref: '#/components/schemas/NullableNumber' }
+        p90: { $ref: '#/components/schemas/NullableNumber' }
+        p95: { $ref: '#/components/schemas/NullableNumber' }
+        p99: { $ref: '#/components/schemas/NullableNumber' }
+        max: { $ref: '#/components/schemas/NullableNumber' }
+
+    Summary:
+      type: object
+      required:
+        - durationSeconds
+        - totalRequests
+        - successfulRequests
+        - failedRequests
+        - errorRate
+        - avgRps
+        - peakRps
+        - peakVus
+        - totalBytes
+        - bytesPerSecond
+        - latency
+        - statusCodes
+        - errorTypes
+      properties:
+        durationSeconds: { type: number }
+        totalRequests: { type: integer, minimum: 0 }
+        successfulRequests: { type: integer, minimum: 0 }
+        failedRequests: { type: integer, minimum: 0 }
+        errorRate: { type: number, minimum: 0, maximum: 1 }
+        avgRps: { type: number, minimum: 0 }
+        peakRps: { type: number, minimum: 0 }
+        peakVus: { type: integer, minimum: 0 }
+        totalBytes: { type: integer, minimum: 0 }
+        bytesPerSecond: { type: number, minimum: 0 }
+        latency: { $ref: '#/components/schemas/LatencySummary' }
+        statusCodes:
+          type: object
+          additionalProperties: { type: integer }
+        errorTypes:
+          type: object
+          additionalProperties: { type: integer }
+
+    LoadTestListItem:
+      type: object
+      required: [id, name, status, config, summary, error, createdAt, startedAt, finishedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        status: { $ref: '#/components/schemas/RunStatus' }
+        config: { $ref: '#/components/schemas/PublicConfig' }
+        summary:
+          oneOf:
+            - $ref: '#/components/schemas/Summary'
+            - type: 'null'
+        error: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        startedAt: { $ref: '#/components/schemas/NullableDateTime' }
+        finishedAt: { $ref: '#/components/schemas/NullableDateTime' }
+
+    LoadTest:
+      allOf:
+        - $ref: '#/components/schemas/LoadTestListItem'
+        - type: object
+          required: [timeline]
+          properties:
+            timeline:
+              type: array
+              items: { $ref: '#/components/schemas/TimelinePoint' }
+
+    Verdict:
+      type: string
+      enum: [improved, regressed, unchanged, mixed, unknown]
+
+    Comparison:
+      type: object
+      required: [baseline, candidate, noiseThresholdPercent, metrics, verdict]
+      properties:
+        baseline: { $ref: '#/components/schemas/RunReference' }
+        candidate: { $ref: '#/components/schemas/RunReference' }
+        noiseThresholdPercent: { type: number }
+        verdict: { $ref: '#/components/schemas/Verdict' }
+        metrics:
+          type: array
+          items:
+            type: object
+            required: [key, label, baseline, candidate, changePercent, verdict]
+            properties:
+              key: { type: string, enum: [latencyP50, latencyP95, latencyP99, avgRps, errorRate] }
+              label: { type: string }
+              baseline: { $ref: '#/components/schemas/NullableNumber' }
+              candidate: { $ref: '#/components/schemas/NullableNumber' }
+              changePercent: { $ref: '#/components/schemas/NullableNumber' }
+              verdict: { $ref: '#/components/schemas/Verdict' }
+
+    RunReference:
+      type: object
+      required: [id, name, finishedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        finishedAt: { $ref: '#/components/schemas/NullableDateTime' }
+
+    AiAnalysis:
+      type: object
+      required: [runId, provider, model, fallbackUsed, generatedAt, durationMs, content]
+      properties:
+        runId: { type: string, format: uuid }
+        provider: { type: string, enum: [gemini, groq] }
+        model: { type: string }
+        fallbackUsed:
+          type: boolean
+          description: true si Gemini falló y respondió Groq
+        generatedAt: { type: string, format: date-time }
+        durationMs: { type: integer, minimum: 0 }
+        content: { $ref: '#/components/schemas/AiAnalysisContent' }
+
+    AiAnalysisContent:
+      type: object
+      additionalProperties: false
+      required: [verdict, summary, findings, recommendations]
+      properties:
+        verdict:
+          type: string
+          enum: [healthy, degraded, critical]
+          description: Estado general de la API bajo esta carga
+        summary: { type: string, maxLength: 1200 }
+        findings:
+          type: array
+          maxItems: 6
+          items:
+            type: object
+            additionalProperties: false
+            required: [title, detail, severity]
+            properties:
+              title: { type: string, maxLength: 120 }
+              detail: { type: string, maxLength: 600 }
+              severity: { type: string, enum: [info, warning, critical] }
+        recommendations:
+          type: array
+          maxItems: 6
+          items: { type: string, maxLength: 400 }
+
+    Target:
+      type: object
+      required: [id, hostname, token, method, verified, verifiedAt, createdAt, instructions]
+      properties:
+        id: { type: string, format: uuid }
+        hostname: { type: string }
+        token: { type: string }
+        method: { type: [string, 'null'], enum: [http, dns, null] }
+        verified: { type: boolean }
+        verifiedAt: { $ref: '#/components/schemas/NullableDateTime' }
+        createdAt: { type: string, format: date-time }
+        instructions:
+          type: object
+          required: [http, dns]
+          properties:
+            http:
+              type: object
+              required: [url, content]
+              properties:
+                url: { type: string }
+                content: { type: string }
+            dns:
+              type: object
+              required: [type, name, value]
+              properties:
+                type: { const: TXT }
+                name: { type: string }
+                value: { type: string }
+
+    Health:
+      type: object
+      required: [status, database]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        database: { type: string, enum: [up, down] }
+        uptimeSeconds: { type: integer }
+
+    ServerMetrics:
+      type: object
+      required: [timestamp, uptimeSeconds, cpuPercent, memoryMb, gauges, routes]
+      properties:
+        timestamp: { type: string, format: date-time }
+        uptimeSeconds: { type: integer }
+        cpuPercent: { type: number }
+        eventLoop:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [delayMeanMs, delayP99Ms, delayMaxMs, utilization]
+              properties:
+                delayMeanMs: { type: number }
+                delayP99Ms: { type: number }
+                delayMaxMs: { type: number }
+                utilization: { type: number, minimum: 0, maximum: 1 }
+        memoryMb:
+          type: object
+          required: [rss, heapUsed, heapTotal]
+          properties:
+            rss: { type: number }
+            heapUsed: { type: number }
+            heapTotal: { type: number }
+        gauges:
+          type: object
+          additionalProperties: { type: number }
+        routes:
+          type: object
+          additionalProperties:
+            type: object
+            required: [count, serverErrors, latencyMs]
+            properties:
+              count: { type: integer }
+              serverErrors: { type: integer }
+              latencyMs: { type: object }
