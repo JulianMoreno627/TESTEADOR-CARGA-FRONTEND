@@ -155,10 +155,10 @@ export default function NewTestPage() {
           <section className="card">
             <h2>Carga</h2>
             <div className="field-row">
-              <FormField label="Usuarios virtuales (VUs)" hint="El servidor admite hasta 500 por defecto." error={fieldErrors.vus}>
+              <FormField label="Usuarios virtuales (VUs)" hint="El servidor fija el máximo; si lo superas, te lo indica aquí." error={fieldErrors.vus}>
                 {(props) => numberInput('vus', props)}
               </FormField>
-              <FormField label="Duración (segundos)" hint="El servidor admite hasta 300 por defecto." error={fieldErrors.durationSeconds}>
+              <FormField label="Duración (segundos)" hint="El servidor fija el máximo; si lo superas, te lo indica aquí." error={fieldErrors.durationSeconds}>
                 {(props) => numberInput('durationSeconds', props)}
               </FormField>
             </div>
