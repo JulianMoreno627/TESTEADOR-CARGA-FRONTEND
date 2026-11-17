@@ -723,6 +723,11 @@ input::placeholder, textarea::placeholder { color: var(--axis-text); }
 }
 .copyable-row code { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 12.5px; }
 
+/* Patrones de renderizado */
+.rendering-table td, .rendering-table th { white-space: normal; vertical-align: top; min-width: 140px; }
+.rendering-full-name { display: block; font-size: 12px; font-weight: 400; }
+.rendering-results { margin-top: 16px; }
+
 /* Lectura automática (Web Worker) */
 .insights { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
 .insights-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }

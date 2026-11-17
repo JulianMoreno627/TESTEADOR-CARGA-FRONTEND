@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: '/compare', label: 'Comparar' },
   { to: '/targets', label: 'Dominios' },
   { to: '/system', label: 'Sistema' },
+  { to: '/rendering', label: 'Renderizado' },
 ];
 
 export default function Layout() {
