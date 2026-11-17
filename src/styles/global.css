@@ -32,40 +32,40 @@
   --shadow: 0 8px 24px rgba(11, 11, 11, 0.14);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --page: #0d0d0d;
-    --surface: #1a1a19;
-    --surface-raised: #242423;
-    --wash: rgba(255, 255, 255, 0.07);
-    --text-primary: #f0efec;
-    --text-secondary: #c3c2b7;
-    --text-muted: #a3a29a;
-    --axis-text: #898781;
-    --grid: #2c2c2a;
-    --baseline: #383835;
-    --border: rgba(255, 255, 255, 0.12);
-    --border-strong: rgba(255, 255, 255, 0.3);
-    --accent: #3987e5;
-    --accent-hover: #5598e7;
-    --accent-soft: #184f95;
-    --on-accent: #0b0b0b;
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --series-3: #199e70;
-    --good: #4ccb4c;
-    --good-bg: rgba(12, 163, 12, 0.18);
-    --warning: #fab219;
-    --warning-bg: rgba(250, 178, 25, 0.15);
-    --critical: #f08484;
-    --critical-bg: rgba(208, 59, 59, 0.2);
-    --critical-solid: #d03b3b;
-    --info: #86b6ef;
-    --info-bg: rgba(57, 135, 229, 0.18);
-    --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  }
+/* Modo oscuro: solo cuando el usuario lo elige. El claro es el predeterminado. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-raised: #242423;
+  --wash: rgba(255, 255, 255, 0.07);
+  --text-primary: #f0efec;
+  --text-secondary: #c3c2b7;
+  --text-muted: #a3a29a;
+  --axis-text: #898781;
+  --grid: #2c2c2a;
+  --baseline: #383835;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.3);
+  --accent: #3987e5;
+  --accent-hover: #5598e7;
+  --accent-soft: #184f95;
+  --on-accent: #0b0b0b;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --good: #4ccb4c;
+  --good-bg: rgba(12, 163, 12, 0.18);
+  --warning: #fab219;
+  --warning-bg: rgba(250, 178, 25, 0.15);
+  --critical: #f08484;
+  --critical-bg: rgba(208, 59, 59, 0.2);
+  --critical-solid: #d03b3b;
+  --info: #86b6ef;
+  --info-bg: rgba(57, 135, 229, 0.18);
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
+
 
 *,
 *::before,
@@ -185,6 +185,9 @@ code {
 }
 .connection.is-online { color: var(--good); }
 .connection.is-offline { color: var(--critical); }
+
+.topbar-tools { display: flex; align-items: center; gap: 8px; }
+.theme-toggle { min-height: 36px; color: var(--text-secondary); }
 
 /* Página */
 .page {

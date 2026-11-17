@@ -1,6 +1,7 @@
 import { Activity, Wifi, WifiOff } from 'lucide-react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useSocketConnected } from '../realtime/socket.js';
+import ThemeToggle from './ThemeToggle.jsx';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Nueva prueba', end: true },
@@ -29,10 +30,13 @@ export default function Layout() {
               </NavLink>
             ))}
           </nav>
-          <span className={`connection ${connected ? 'is-online' : 'is-offline'}`} role="status">
-            {connected ? <Wifi size={15} aria-hidden="true" /> : <WifiOff size={15} aria-hidden="true" />}
-            {connected ? 'En vivo' : 'Sin conexión'}
-          </span>
+          <div className="topbar-tools">
+            <span className={`connection ${connected ? 'is-online' : 'is-offline'}`} role="status">
+              {connected ? <Wifi size={15} aria-hidden="true" /> : <WifiOff size={15} aria-hidden="true" />}
+              {connected ? 'En vivo' : 'Sin conexión'}
+            </span>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
       <main className="page">

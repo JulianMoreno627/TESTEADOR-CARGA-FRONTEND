@@ -6,6 +6,13 @@
     <meta name="description" content="Simula usuarios concurrentes contra tu API y mide su latencia, throughput y errores en tiempo real." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Testeador de Carga Visual</title>
+    <script>
+      // Aplica el modo oscuro antes de pintar la página, si el usuario lo eligió,
+      // para evitar un destello claro mientras carga React. Por defecto: claro.
+      try {
+        if (localStorage.getItem('theme') === 'dark') document.documentElement.dataset.theme = 'dark';
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
