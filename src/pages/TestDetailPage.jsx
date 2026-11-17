@@ -7,6 +7,7 @@ import Breakdown from '../components/Breakdown.jsx';
 import { ErrorNotice, Loading, StatusBadge } from '../components/Feedback.jsx';
 import LineChart from '../components/LineChart.jsx';
 import StatTile from '../components/StatTile.jsx';
+import TimelineInsights from '../components/TimelineInsights.jsx';
 import { useLiveTest } from '../hooks/useLiveTest.js';
 import { formatBytes, formatDateTime, formatMs, formatNumber, formatPercent, formatRate, formatSeconds } from '../lib/format.js';
 import { sumTimeline } from '../lib/timeline.js';
@@ -251,6 +252,7 @@ function TestDetail({ id }) {
       )}
 
       {summary && <SummaryDetails summary={summary} />}
+      {!running && timeline.length > 0 && <TimelineInsights testId={id} timeline={timeline} />}
       {!running && summary && <AiAnalysisPanel testId={id} />}
     </>
   );

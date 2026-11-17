@@ -723,6 +723,16 @@ input::placeholder, textarea::placeholder { color: var(--axis-text); }
 }
 .copyable-row code { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 12.5px; }
 
+/* Lectura automática (Web Worker) */
+.insights { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.insights-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.insights-header h2 { margin: 0; }
+.insights .field-hint { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+.insights-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; margin: 4px 0 0; }
+.insight { padding: 12px; border: 1px solid var(--border); border-radius: 6px; }
+.insight dt { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.insight dd { margin: 4px 0 0; line-height: 1.5; }
+
 /* Análisis con IA */
 .ai-panel { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 .ai-panel > h2 { display: flex; align-items: center; gap: 8px; margin-bottom: 0; }
