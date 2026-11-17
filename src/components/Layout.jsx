@@ -20,7 +20,9 @@ export default function Layout() {
       <header className="topbar">
         <div className="topbar-inner">
           <Link to="/" className="brand">
-            <Activity size={20} aria-hidden="true" />
+            <span className="brand-mark">
+              <Activity size={18} strokeWidth={2.5} aria-hidden="true" />
+            </span>
             <span>Testeador de Carga</span>
           </Link>
           <nav className="nav" aria-label="Principal">
