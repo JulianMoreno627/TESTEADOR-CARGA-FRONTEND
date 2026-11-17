@@ -1,4 +1,5 @@
 import { API_URL } from '../config.js';
+import { fetchWithWakeUp } from './wakeUp.js';
 
 export class ApiError extends Error {
   constructor(status, code, message, details) {
@@ -41,16 +42,25 @@ export function urlFor(operationId, { params = {}, query } = {}) {
 }
 
 async function send(operationId, { params, query, body, signal } = {}) {
+  const { method } = OPERATIONS[operationId];
+  const url = urlFor(operationId, { params, query });
+  const init = {
+    method,
+    signal,
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  };
+
   try {
-    return await fetch(urlFor(operationId, { params, query }), {
-      method: OPERATIONS[operationId].method,
-      signal,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    // Las consultas esperan a que el backend despierte; las acciones no se repiten solas.
+    return method === 'GET' ? await fetchWithWakeUp(url, init) : await fetch(url, init);
   } catch (error) {
     if (error.name === 'AbortError') throw error;
-    throw new ApiError(0, 'NETWORK_ERROR', `No se pudo conectar con el backend en ${API_URL}. Comprueba que esté en marcha.`);
+    throw new ApiError(
+      0,
+      'NETWORK_ERROR',
+      'No se pudo conectar con el backend. Si estuvo inactivo, el plan gratuito de Render tarda cerca de un minuto en despertar: espera un momento y vuelve a intentarlo.',
+    );
   }
 }
 
@@ -94,8 +104,11 @@ export const targets = {
 
 export const system = {
   metrics: ({ signal } = {}) => dataOf(request('getServerMetrics', { signal })),
-  /** /health no usa el formato común: responde 503 con su estado si la base de datos falla. */
-  health: async ({ signal } = {}) => (await send('getHealth', { signal })).json(),
+  /**
+   * /health no usa el formato común: responde 503 con su estado si la base de datos falla.
+   * No reintenta: la pantalla Sistema debe mostrar de inmediato si el servidor no responde.
+   */
+  health: async ({ signal } = {}) => (await fetch(urlFor('getHealth'), { signal })).json(),
 };
 
 /** Vistas que renderiza el backend, cada una con su patrón de renderizado. */
