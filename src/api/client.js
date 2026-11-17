@@ -10,10 +10,40 @@ export class ApiError extends Error {
   }
 }
 
-async function send(path, { method = 'GET', body, signal } = {}) {
+/**
+ * Operaciones que usa el frontend, con el mismo operationId del contrato OpenAPI
+ * (contract/openapi.yaml). La prueba de contrato comprueba que cada una exista allí
+ * con el mismo método y la misma ruta: si el backend cambia el contrato, falla aquí.
+ */
+export const OPERATIONS = {
+  getHealth: { method: 'GET', path: '/health' },
+  getServerMetrics: { method: 'GET', path: '/api/v1/metrics' },
+  startLoadTest: { method: 'POST', path: '/api/v1/load-tests' },
+  listLoadTests: { method: 'GET', path: '/api/v1/load-tests' },
+  getLoadTest: { method: 'GET', path: '/api/v1/load-tests/{id}' },
+  stopLoadTest: { method: 'POST', path: '/api/v1/load-tests/{id}/stop' },
+  deleteLoadTest: { method: 'DELETE', path: '/api/v1/load-tests/{id}' },
+  compareLoadTests: { method: 'GET', path: '/api/v1/load-tests/compare' },
+  downloadReport: { method: 'GET', path: '/api/v1/load-tests/{id}/report' },
+  getAnalysis: { method: 'GET', path: '/api/v1/load-tests/{id}/analysis' },
+  createAnalysis: { method: 'POST', path: '/api/v1/load-tests/{id}/analysis' },
+  listTargets: { method: 'GET', path: '/api/v1/targets' },
+  registerTarget: { method: 'POST', path: '/api/v1/targets' },
+  verifyTarget: { method: 'POST', path: '/api/v1/targets/{id}/verify' },
+  deleteTarget: { method: 'DELETE', path: '/api/v1/targets/{id}' },
+};
+
+/** Arma la URL de una operación: rellena los parámetros de ruta y añade la query. */
+export function urlFor(operationId, { params = {}, query } = {}) {
+  const path = OPERATIONS[operationId].path.replace(/\{(\w+)\}/g, (_, name) => encodeURIComponent(params[name]));
+  const search = query ? `?${new URLSearchParams(query)}` : '';
+  return `${API_URL}${path}${search}`;
+}
+
+async function send(operationId, { params, query, body, signal } = {}) {
   try {
-    return await fetch(`${API_URL}${path}`, {
-      method,
+    return await fetch(urlFor(operationId, { params, query }), {
+      method: OPERATIONS[operationId].method,
       signal,
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -25,8 +55,8 @@ async function send(path, { method = 'GET', body, signal } = {}) {
 }
 
 /** Devuelve `{ data, meta }`, o lanza ApiError con el formato de error del contrato. */
-async function request(path, options) {
-  const response = await send(path, options);
+async function request(operationId, options) {
+  const response = await send(operationId, options);
   if (response.status === 204) return { data: null };
 
   const payload = await response.json().catch(() => null);
@@ -40,27 +70,32 @@ async function request(path, options) {
 const dataOf = async (promise) => (await promise).data;
 
 export const loadTests = {
-  start: (config) => dataOf(request('/api/v1/load-tests', { method: 'POST', body: config })),
-  list: ({ limit = 20, offset = 0, signal } = {}) => request(`/api/v1/load-tests?limit=${limit}&offset=${offset}`, { signal }),
-  get: (id, { signal } = {}) => dataOf(request(`/api/v1/load-tests/${id}`, { signal })),
-  stop: (id) => dataOf(request(`/api/v1/load-tests/${id}/stop`, { method: 'POST' })),
-  remove: (id) => dataOf(request(`/api/v1/load-tests/${id}`, { method: 'DELETE' })),
+  start: (config) => dataOf(request('startLoadTest', { body: config })),
+  list: ({ limit = 20, offset = 0, signal } = {}) => request('listLoadTests', { query: { limit, offset }, signal }),
+  get: (id, { signal } = {}) => dataOf(request('getLoadTest', { params: { id }, signal })),
+  stop: (id) => dataOf(request('stopLoadTest', { params: { id } })),
+  remove: (id) => dataOf(request('deleteLoadTest', { params: { id } })),
   compare: (baseline, candidate, { signal } = {}) =>
-    dataOf(request(`/api/v1/load-tests/compare?baseline=${baseline}&candidate=${candidate}`, { signal })),
-  reportUrl: (id, format) => `${API_URL}/api/v1/load-tests/${id}/report?format=${format}`,
+    dataOf(request('compareLoadTests', { query: { baseline, candidate }, signal })),
+  reportUrl: (id, format) => urlFor('downloadReport', { params: { id }, query: { format } }),
+};
+
+export const analysis = {
+  get: (id, { signal } = {}) => dataOf(request('getAnalysis', { params: { id }, signal })),
+  create: (id) => dataOf(request('createAnalysis', { params: { id } })),
 };
 
 export const targets = {
-  list: ({ signal } = {}) => dataOf(request('/api/v1/targets', { signal })),
-  register: (hostname) => dataOf(request('/api/v1/targets', { method: 'POST', body: { hostname } })),
-  verify: (id, method) => dataOf(request(`/api/v1/targets/${id}/verify`, { method: 'POST', body: { method } })),
-  remove: (id) => dataOf(request(`/api/v1/targets/${id}`, { method: 'DELETE' })),
+  list: ({ signal } = {}) => dataOf(request('listTargets', { signal })),
+  register: (hostname) => dataOf(request('registerTarget', { body: { hostname } })),
+  verify: (id, method) => dataOf(request('verifyTarget', { params: { id }, body: { method } })),
+  remove: (id) => dataOf(request('deleteTarget', { params: { id } })),
 };
 
 export const system = {
-  metrics: ({ signal } = {}) => dataOf(request('/api/v1/metrics', { signal })),
+  metrics: ({ signal } = {}) => dataOf(request('getServerMetrics', { signal })),
   /** /health no usa el formato común: responde 503 con su estado si la base de datos falla. */
-  health: async ({ signal } = {}) => (await send('/health', { signal })).json(),
+  health: async ({ signal } = {}) => (await send('getHealth', { signal })).json(),
 };
 
 /** Vistas que renderiza el backend, cada una con su patrón de renderizado. */
